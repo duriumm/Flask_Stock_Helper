@@ -1,68 +1,93 @@
-import json
-from flask import Flask, request
-from flask_restful import Api, Resource, abort, reqparse
-import csv
+import os
+from flask import Flask
+from flask_restful import Api, Resource
 import pandas as pd
-
-
+from IPython.display import display
+root_path = os.path.dirname(__file__)
+import utils
+print("ROOT PATH" + root_path)
 app = Flask(__name__)
 api = Api(app)
 
-stock_put_args = reqparse.RequestParser()
-stock_put_args.add_argument("name", type=str, help="Name of the video is required", required=True)
-stock_put_args.add_argument("views", type=int, help="Views of the video is required", required=True)
-stock_put_args.add_argument("likes", type=int, help="Likes of the video is required", required=True)
-
-
-videos = {}
-
-def abortFunc(video_id):
-  if video_id not in videos:
-    abort("video id is not valid)")
+print(utils)
 
 class StockMarketCalculator(Resource):
+
+  winners_dict = {
+    'Winners':[ 
+
+    ]
+  }
+
+  def calculate_todays_stockmarket_winners(self):
+    print("winners are")
+
+  def calculate_percentage_diff(self, old_value, new_value):
+    percent_diff = (float(new_value - old_value) / abs(old_value)) * 100 # Abs to handle negative values
+    return percent_diff
+
+
   def get(self):
-    # TODO: Read the csv and return the data as JSON. (Where should the csv be located?)
-    csv_data = pd.read_csv(r'C:\Users\lasse\LocalDocuments\Flask_stock\Flask_Stock_Helper\data[6596].csv', sep=';')
-    print(csv_data.columns)
-    print(csv_data.Date)
-    print(csv_data.Kod)
-    print(csv_data.Kurs)
-    print(f"Amount of rows is: {len(csv_data)}")
+    config = utils.get_config()
+    csv_data = pd.read_csv(config["csv_path"], sep=';')
+    print("\nRegular values")
+    display(csv_data)
+    first_unique_values = csv_data.sort_values('Date').drop_duplicates(['Kod']) ######
 
- 
-    # csv_data = csv_data.set_index('index')
-    csv_data = csv_data.to_dict(orient='index')
+    print("\nFIRST UNIQUE VALUES")
+    display(first_unique_values)
 
-    print(csv_data)
-    return csv_data
+    last_unique_values = csv_data.sort_values('Date', ascending=False).drop_duplicates(['Kod'])
+    print("\LAST UNIQUE VALUES")
+    display(last_unique_values)
 
-  def post(self):
-    # TODO: Open the csv and add data to it
-    return {"data": "We did post"}
+    rank = 0
+    for index, row in last_unique_values.iterrows():
+      stock_name = row['Kod']
+      last_unique_value = row['Kurs']
+      first_unique_value = first_unique_values.loc[first_unique_values['Kod'] == row['Kod'], 'Kurs'].values[0]
+      percentage_diff_value = self.calculate_percentage_diff(first_unique_value, last_unique_value)
+      print(f"First unique for {row['Kod']}: {first_unique_value}")
+      print(f"Last unique for {row['Kod']}: {last_unique_value}")
+      print(f"percentage_diff for {row['Kod']}: {round(percentage_diff_value, 2)}")
+      print()
 
-  def put(self, date, kod, kurs):
-    put_df = pd.DataFrame({
-      "Date": "2017-11-11",
-      "Kod": "XXX",
-      "Kurs": "699"
-    })
-    print(f"PUT df is: {put_df}")
-    csv_data = pd.read_csv(r'C:\Users\lasse\LocalDocuments\Flask_stock\Flask_Stock_Helper\data[6596].csv', sep=';',names=["Date","Kod","Kurs"])
-    # csv_data.to_csv('my_csv.csv', mode='a', header=False)
-    # requests.put(BASE, {"name": "Lasse name", "views": 102, "likes": 10})
-    # args = video_put_args.parse_args()
-    # videos[video_id] = args
-    # return videos[video_id], 201 # returns what we put in
+
+      self.winners_dict["Winners"].append({"rank": 0, "name": stock_name, "percent": round(percentage_diff_value, 2), "latest": last_unique_value })
+
+    self.winners_dict["Winners"] = sorted(self.winners_dict["Winners"], key=lambda d: d['percent'], reverse=True) 
+
+    # for stock, index in self.winners_dict["Winners"]:
+    #   self.winners_dict["Winners"]
+    #   print(stock)
+
+    # Set rank and remove other than top 3
+    for index, stock in enumerate(self.winners_dict["Winners"]):
+      if index < 3:
+        print(f"WE ARE AT INDEX: {index}, FOR STOCK: {stock}")
+        print(f"LENGTH OF LIST: {len(self.winners_dict['Winners'])}")
+
+        print(f"type rank: {type(rank)}")
+        self.winners_dict["Winners"][index]["rank"] = index + 1
+
+    # Delete objects over len 3
+    for obj in self.winners_dict["Winners"]:
+      if len(self.winners_dict["Winners"]) == 3:
+        print("length 3, returning")
+        break
+      else:
+        del self.winners_dict["Winners"][-1]
+
+
+    print(f"LENGTH OF LIST after: {len(self.winners_dict['Winners'])}")
+
+    # # self.calculate_todays_stockmarket_winners()
+
+    print(self.winners_dict)
+    return self.winners_dict
 
 
 api.add_resource(StockMarketCalculator, "/stocklist")
-
-
-# @app.route('/')
-# def hello():
-#   return "hello mate"
-
 
 if __name__ == '__main__':
   app.run(debug=True)
