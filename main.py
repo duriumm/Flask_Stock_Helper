@@ -5,85 +5,53 @@ import pandas as pd
 from IPython.display import display
 root_path = os.path.dirname(__file__)
 import utils
-print("ROOT PATH" + root_path)
 app = Flask(__name__)
 api = Api(app)
 
-print(utils)
 
 class StockMarketCalculator(Resource):
 
-  winners_dict = {
-    'Winners':[ 
-
-    ]
-  }
-
-  def calculate_todays_stockmarket_winners(self):
-    print("winners are")
-
+  winners_dict = { 'Winners':[] }
+  config = utils.get_config()
+  
   def calculate_percentage_diff(self, old_value, new_value):
     percent_diff = (float(new_value - old_value) / abs(old_value)) * 100 # Abs to handle negative values
     return percent_diff
 
-
-  def get(self):
-    config = utils.get_config()
-    csv_data = pd.read_csv(config["csv_path"], sep=';')
-    print("\nRegular values")
-    display(csv_data)
-    first_unique_values = csv_data.sort_values('Date').drop_duplicates(['Kod']) ######
-
-    print("\nFIRST UNIQUE VALUES")
-    display(first_unique_values)
-
+  def calculate_todays_stockmarket_winners(self):
+    # Get the first and last unique values into two separate dataframes
+    csv_data = pd.read_csv(self.config["csv_path"], sep=';')
+    first_unique_values = csv_data.sort_values('Date').drop_duplicates(['Kod']) 
     last_unique_values = csv_data.sort_values('Date', ascending=False).drop_duplicates(['Kod'])
-    print("\LAST UNIQUE VALUES")
-    display(last_unique_values)
 
-    rank = 0
+    # Add calculated data from both dataframes into the winners dictionary
     for index, row in last_unique_values.iterrows():
       stock_name = row['Kod']
       last_unique_value = row['Kurs']
       first_unique_value = first_unique_values.loc[first_unique_values['Kod'] == row['Kod'], 'Kurs'].values[0]
       percentage_diff_value = self.calculate_percentage_diff(first_unique_value, last_unique_value)
-      print(f"First unique for {row['Kod']}: {first_unique_value}")
-      print(f"Last unique for {row['Kod']}: {last_unique_value}")
-      print(f"percentage_diff for {row['Kod']}: {round(percentage_diff_value, 2)}")
-      print()
-
+      print(f"\nFirst unique for {row['Kod']}: {first_unique_value}") ## TODO: Remove print
+      print(f"Last unique for {row['Kod']}: {last_unique_value}")     ## TODO: Remove print
+      print(f"percentage_diff for {row['Kod']}: {round(percentage_diff_value, 2)}") ## TODO: Remove print
 
       self.winners_dict["Winners"].append({"rank": 0, "name": stock_name, "percent": round(percentage_diff_value, 2), "latest": last_unique_value })
 
-    self.winners_dict["Winners"] = sorted(self.winners_dict["Winners"], key=lambda d: d['percent'], reverse=True) 
+    # Sort winners list based on percent and keep top three only
+    self.winners_dict["Winners"] = sorted(self.winners_dict["Winners"], key=lambda d: d['percent'], reverse=True)[:3]
 
-    # for stock, index in self.winners_dict["Winners"]:
-    #   self.winners_dict["Winners"]
-    #   print(stock)
-
-    # Set rank and remove other than top 3
+    # Set rank for the remaining data fields
     for index, stock in enumerate(self.winners_dict["Winners"]):
-      if index < 3:
-        print(f"WE ARE AT INDEX: {index}, FOR STOCK: {stock}")
-        print(f"LENGTH OF LIST: {len(self.winners_dict['Winners'])}")
-
-        print(f"type rank: {type(rank)}")
         self.winners_dict["Winners"][index]["rank"] = index + 1
 
-    # Delete objects over len 3
-    for obj in self.winners_dict["Winners"]:
-      if len(self.winners_dict["Winners"]) == 3:
-        print("length 3, returning")
-        break
-      else:
-        del self.winners_dict["Winners"][-1]
+  def get(self):
+    # Reset winners_dict 
+    self.winners_dict = { 'Winners':[] }
 
+    # Add top 3 winners of today to the winners_dict 
+    self.calculate_todays_stockmarket_winners()
 
-    print(f"LENGTH OF LIST after: {len(self.winners_dict['Winners'])}")
-
-    # # self.calculate_todays_stockmarket_winners()
-
-    print(self.winners_dict)
+    print(self.winners_dict) ## TODO: Remove print
+    # Return serialized winners_dict as JSON
     return self.winners_dict
 
 
