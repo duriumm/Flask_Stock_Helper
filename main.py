@@ -30,9 +30,6 @@ class StockMarketCalculator(Resource):
       last_unique_value = row['Kurs']
       first_unique_value = first_unique_values.loc[first_unique_values['Kod'] == row['Kod'], 'Kurs'].values[0]
       percentage_diff_value = self.calculate_percentage_diff(first_unique_value, last_unique_value)
-      print(f"\nFirst unique for {row['Kod']}: {first_unique_value}") ## TODO: Remove print
-      print(f"Last unique for {row['Kod']}: {last_unique_value}")     ## TODO: Remove print
-      print(f"percentage_diff for {row['Kod']}: {round(percentage_diff_value, 2)}") ## TODO: Remove print
 
       self.winners_dict["Winners"].append({"rank": 0, "name": stock_name, "percent": round(percentage_diff_value, 2), "latest": last_unique_value })
 
@@ -50,7 +47,6 @@ class StockMarketCalculator(Resource):
     # Add top 3 winners of today to the winners_dict 
     self.calculate_todays_stockmarket_winners()
 
-    print(self.winners_dict) ## TODO: Remove print
     # Return serialized winners_dict as JSON
     return self.winners_dict
 
